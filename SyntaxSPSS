@@ -1,0 +1,146 @@
+
+FREQUENCIES VARIABLES=Sexe Ville Réligion SituationMatrimoniale NiveauInstruction TrancheAge 
+    EtatSante NiveauDeVie
+  /PIECHART FREQ
+  /ORDER=ANALYSIS.
+
+DESCRIPTIVES VARIABLES=Âge Nombredenfants Salaire Ancienté QuantGras EpaisTriceps CirconfCuisse 
+    CirconfAvantBras
+  /STATISTICS=MEAN STDDEV VARIANCE RANGE MIN MAX KURTOSIS SKEWNESS.
+
+CROSSTABS
+  /TABLES=Sexe BY Ville
+  /FORMAT=AVALUE TABLES
+  /CELLS=COUNT TOTAL 
+  /COUNT ROUND CELL.
+
+CROSSTABS
+  /TABLES=Sexe BY SituationMatrimoniale
+  /FORMAT=AVALUE TABLES
+  /CELLS=COUNT TOTAL 
+  /COUNT ROUND CELL.
+
+CROSSTABS
+  /TABLES=NiveauInstruction BY SituationMatrimoniale
+  /FORMAT=AVALUE TABLES
+  /STATISTICS=CHISQ PHI 
+  /CELLS=COUNT TOTAL 
+  /COUNT ROUND CELL.
+
+CROSSTABS
+  /TABLES=EtatSante BY NiveauDeVie
+  /FORMAT=AVALUE TABLES
+  /STATISTICS=CHISQ UC 
+  /CELLS=COUNT TOTAL 
+  /COUNT ROUND CELL.
+
+EXAMINE VARIABLES=Nombredenfants Salaire Ancienté
+  /PLOT BOXPLOT HISTOGRAM NPPLOT
+  /COMPARE GROUPS
+  /STATISTICS DESCRIPTIVES
+  /CINTERVAL 95
+  /MISSING LISTWISE
+  /NOTOTAL.
+
+EXAMINE VARIABLES=QuantGras EpaisTriceps CirconfCuisse CirconfAvantBras
+  /PLOT BOXPLOT STEMLEAF HISTOGRAM NPPLOT
+  /COMPARE GROUPS
+  /STATISTICS DESCRIPTIVES
+  /CINTERVAL 95
+  /MISSING LISTWISE
+  /NOTOTAL.
+
+CORRELATIONS
+  /VARIABLES=QuantGras EpaisTriceps CirconfCuisse CirconfAvantBras
+  /PRINT=TWOTAIL NOSIG
+  /STATISTICS DESCRIPTIVES XPROD
+  /MISSING=PAIRWISE.
+
+MEANS TABLES=Salaire BY Sexe
+  /CELLS=MEAN COUNT STDDEV SUM MIN MAX RANGE.
+
+USE ALL.
+COMPUTE filter_$=(Réligion = 1).
+VARIABLE LABELS filter_$ 'Réligion = 1 (FILTER)'.
+VALUE LABELS filter_$ 0 'Not Selected' 1 'Selected'.
+FORMATS filter_$ (f1.0).
+FILTER BY filter_$.
+EXECUTE.
+
+FREQUENCIES VARIABLES=SituationMatrimoniale
+  /PIECHART FREQ
+  /ORDER=ANALYSIS.
+
+FILTER OFF.
+USE ALL.
+EXECUTE.
+
+SORT CASES  BY Ville.
+SPLIT FILE LAYERED BY Ville.
+
+DESCRIPTIVES VARIABLES=Âge
+  /STATISTICS=MEAN STDDEV VARIANCE RANGE MIN MAX KURTOSIS SKEWNESS.
+
+SPLIT FILE OFF.
+
+T-TEST GROUPS=Sexe(1 2)
+  /MISSING=ANALYSIS
+  /VARIABLES=Salaire
+  /CRITERIA=CI(.95).
+
+NONPAR CORR
+  /VARIABLES=EtatSante NiveauDeVie
+  /PRINT=SPEARMAN TWOTAIL NOSIG
+  /MISSING=PAIRWISE.
+
+ONEWAY Ancienté BY SituationMatrimoniale
+  /MISSING ANALYSIS
+  /POSTHOC=TUKEY DUNCAN SCHEFFE BONFERRONI SIDAK T2 T3 DUNNETT ALPHA(0.05).
+
+* Générateur de graphiques.
+GGRAPH
+  /GRAPHDATASET NAME="graphdataset" VARIABLES=NiveauInstruction Âge MISSING=LISTWISE 
+    REPORTMISSING=NO
+  /GRAPHSPEC SOURCE=INLINE.
+BEGIN GPL
+  SOURCE: s=userSource(id("graphdataset"))
+  DATA: NiveauInstruction=col(source(s), name("NiveauInstruction"), unit.category())
+  DATA: Âge=col(source(s), name("Âge"))
+  DATA: id=col(source(s), name("$CASENUM"), unit.category())
+  GUIDE: axis(dim(1), label("Niveau d'instruction"))
+  GUIDE: axis(dim(2), label("Quel est votre âge?"))
+  GUIDE: text.title(label("Boîte à Moustaches : simple de Quel est votre âge? par Niveau ",
+    "d'instruction"))
+  SCALE: cat(dim(1), include("1", "2", "3", "4"))
+  SCALE: linear(dim(2), include(0))
+  ELEMENT: schema(position(bin.quantile.letter(NiveauInstruction*Âge)), label(id))
+END GPL.
+
+* Générateur de graphiques.
+GGRAPH
+  /GRAPHDATASET NAME="graphdataset" VARIABLES=CirconfAvantBras MISSING=LISTWISE REPORTMISSING=NO
+  /GRAPHSPEC SOURCE=INLINE
+  /COLORCYCLE COLOR1(155,0,0), COLOR2(215,0,51), COLOR3(41,134,38), COLOR4(243,103,42), 
+    COLOR5(227,215,16), COLOR6(0,180,160), COLOR7(255,196,226), COLOR8(171,73,243), COLOR9(95,195,56), 
+    COLOR10(63,90,168), COLOR11(254,130,180), COLOR12(208,202,140), COLOR13(204,134,63), 
+    COLOR14(119,55,143), COLOR15(236,230,208), COLOR16(69,70,71), COLOR17(92,202,136), 
+    COLOR18(208,83,52), COLOR19(204,127,228), COLOR20(225,188,29), COLOR21(237,75,75), 
+    COLOR22(28,205,205), COLOR23(92,113,72), COLOR24(225,139,14), COLOR25(9,38,114), 
+    COLOR26(90,100,94), COLOR27(155,0,0), COLOR28(207,172,227), COLOR29(150,145,145), 
+    COLOR30(63,235,124)
+  /FRAME OUTER=NO INNER=NO
+  /GRIDLINES XAXIS=YES YAXIS=YES.
+BEGIN GPL
+  SOURCE: s=userSource(id("graphdataset"))
+  DATA: CirconfAvantBras=col(source(s), name("CirconfAvantBras"))
+  GUIDE: axis(dim(1), label("Circonférence avant-bras"))
+  GUIDE: axis(dim(2), label("Fréquence"))
+  GUIDE: text.title(label("Histogramme : simple de Circonférence avant-bras"))
+  ELEMENT: interval(position(summary.count(bin.rect(CirconfAvantBras))), 
+    shape.interior(shape.ibeam))
+  ELEMENT: line(position(density.normal(CirconfAvantBras)))
+END GPL.
+
+XGRAPH CHART=[HISTOBAR] BY Âge[s] BY Sexe[c]
+  /COORDINATE SPLIT=YES
+  /BIN START=AUTO SIZE=AUTO.
